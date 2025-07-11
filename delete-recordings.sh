@@ -1,0 +1,2 @@
+cd recordings
+rm ./* -rf
