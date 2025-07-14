@@ -1,6 +1,6 @@
-# Chrome Record - Screen & Audio Recording System
+# Chrome Record - Screen, Webcam & Audio Recording System
 
-Chrome-based POC of a spy tool that utilizes hidden Chromium flags to bypass antivirus detection, capture screenshots, and even record microphone audio — all in headless mode.
+Chrome-based POC of a spy tool that utilizes hidden Chromium flags to bypass antivirus detection, capture screenshots, the webcam and even record microphone audio — all in headless mode.
 
 ## Video-Demo:
 https://www.youtube.com/watch?v=WqE3BpcCZvE
